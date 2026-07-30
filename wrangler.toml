@@ -1,0 +1,9 @@
+name = "school-report-system"
+compatibility_date = "2024-04-05"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"
+
+[[d1_databases]]
+binding = "school_db"
+database_name = "school-db"
+database_id = "195f930a-afa7-4717-b0d5-249ab23e136f"

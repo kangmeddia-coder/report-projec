@@ -1,0 +1,278 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  name             String
+  password         String
+  role             String    @default("TEACHER")
+  position         String?
+  academicStanding String?
+  schoolId         String?
+  school           School?   @relation(fields: [schoolId], references: [id])
+  reports          Report[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model School {
+  id              String   @id @default(cuid())
+  name            String
+  logoUrl         String?
+  address         String?
+  district        String?
+  affiliation     String?
+  ministry        String?
+  principalName   String?
+  planHeadName    String?
+  docNumberFormat String?
+  fontFamily      String?  @default("Sarabun")
+  paperSize       String?  @default("A4")
+  users           User[]
+  reports         Report[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Report {
+  id             String    @id @default(cuid())
+  title          String
+  activityName   String
+  fiscalYear     String
+  workGroup      String?
+  status         String    @default("DRAFT")
+  completeness   Int       @default(0)
+  preface        String?
+  authorId       String
+  author         User      @relation(fields: [authorId], references: [id])
+  schoolId       String?
+  school         School?   @relation(fields: [schoolId], references: [id])
+  lastSavedAt    DateTime?
+  submittedAt    DateTime?
+  approvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  project           Project?
+  budget            Budget?
+  pdcaItems         PdcaItem[]
+  objectives        Objective[]
+  achievementScore  AchievementScore?
+  satisfactionSurvey SatisfactionSurvey?
+  reportSummary     ReportSummary?
+  evidenceDocs      EvidenceDocument[]
+  activityPhotos    ActivityPhoto[]
+  signatories       Signatory[]
+  standards         ReportStandard[]
+  comments          WorkflowComment[]
+  autoSave          AutoSave?
+}
+
+model Project {
+  id                    String  @id @default(cuid())
+  reportId              String  @unique
+  report                Report  @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  responsiblePerson     String?
+  position              String?
+  schoolName            String?
+  district              String?
+  affiliation           String?
+  ministry              String?
+  strategyItem          String?
+  strategyDetail        String?
+  missionItem           String?
+  missionDetail         String?
+  standardRef           String?
+  standardConsideration String?
+  standardItem          String?
+  implementationStatus  String  @default("COMPLETED")
+  cancellationReason    String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model Budget {
+  id         String   @id @default(cuid())
+  reportId   String   @unique
+  report     Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  budgetType String?
+  approved   Float    @default(0)
+  used       Float    @default(0)
+  remaining  Float    @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model PdcaItem {
+  id          String   @id @default(cuid())
+  reportId    String
+  report      Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  phase       String
+  activity    String
+  startDate   String?
+  endDate     String?
+  responsible String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Objective {
+  id                 String   @id @default(cuid())
+  reportId           String
+  report             Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  objective          String
+  quantitativeTarget String?
+  qualitativeTarget  String?
+  standardRef        String?
+  considerationRef   String?
+  quantitativeResult String?
+  qualitativeResult  String?
+  successPercent     Float?
+  order              Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model AchievementScore {
+  id              String   @id @default(cuid())
+  reportId        String   @unique
+  report          Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  qualityPercent  Float?
+  qualityLevel    String?
+  quantityTarget  Float?
+  quantityActual  Float?
+  quantityPercent Float?
+  quantityLevel   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model SatisfactionSurvey {
+  id          String               @id @default(cuid())
+  reportId    String               @unique
+  report      Report               @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  answers     SatisfactionAnswer[]
+  avgSection1 Float?
+  avgSection2 Float?
+  avgSection3 Float?
+  avgTotal    Float?
+  level       String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+}
+
+model SatisfactionAnswer {
+  id         String             @id @default(cuid())
+  surveyId   String
+  survey     SatisfactionSurvey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  questionNo Int
+  section    Int
+  question   String
+  score      Int?
+  createdAt  DateTime           @default(now())
+}
+
+model ReportSummary {
+  id           String   @id @default(cuid())
+  reportId     String   @unique
+  report       Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  strengths    String?
+  improvements String?
+  suggestions  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model EvidenceDocument {
+  id       String         @id @default(cuid())
+  reportId String
+  report   Report         @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  docType  String
+  hasDoc   Boolean        @default(false)
+  files    EvidenceFile[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model EvidenceFile {
+  id          String           @id @default(cuid())
+  evidenceId  String
+  evidence    EvidenceDocument @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  fileName    String
+  fileType    String
+  fileSize    Int
+  fileUrl     String
+  uploadedAt  DateTime         @default(now())
+}
+
+model ActivityPhoto {
+  id              String   @id @default(cuid())
+  reportId        String
+  report          Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  url             String
+  caption         String?
+  order           Int      @default(0)
+  includeInReport Boolean  @default(true)
+  layout          String   @default("TWO_PER_PAGE")
+  createdAt       DateTime @default(now())
+}
+
+model Signatory {
+  id               String   @id @default(cuid())
+  reportId         String
+  report           Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  role             String
+  name             String?
+  position         String?
+  academicStanding String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model ReportStandard {
+  id              String   @id @default(cuid())
+  reportId        String
+  report          Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  standardNo      String
+  considerationNo String
+  qualityLevel    String?
+  achieved        Boolean  @default(true)
+  order           Int      @default(0)
+  createdAt       DateTime @default(now())
+}
+
+model AutoSave {
+  id       String   @id @default(cuid())
+  reportId String   @unique
+  report   Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  data     String
+  savedAt  DateTime @default(now())
+}
+
+model WorkflowComment {
+  id        String   @id @default(cuid())
+  reportId  String
+  report    Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  content   String
+  authorId  String
+  createdAt DateTime @default(now())
+}
+
+model Template {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  config      String
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
