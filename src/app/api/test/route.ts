@@ -1,42 +1,32 @@
 import { NextResponse } from 'next/server'
-import { getPrisma } from '@/lib/prisma'
-import { compare } from 'bcrypt-ts'
+import { getCloudflareContext } from '@opennextjs/cloudflare'
 
 export async function GET() {
   try {
-    const d1_status = !!(process.env as any).school_db
-    const prisma = getPrisma()
+    let ctx = null;
+    let envKeys = [];
+    let processEnvKeys = [];
+    let school_db_in_process = !!(process.env as any).school_db;
+    let d1_keys = [];
     
-    let user = null
-    let dbError = null
-    let rawQueryError = null;
-    let proxy = typeof prisma === 'object' && typeof (prisma as any).$transaction === 'function' ? false : true;
-
     try {
-      user = await prisma.user.findUnique({
-        where: { email: 'admin@school.ac.th' }
-      })
-    } catch (e: any) {
-      dbError = e.message
-    }
-    
-    let bcryptResult = null
-    let bcryptError = null
-    try {
-      if (user) {
-        bcryptResult = await compare('admin1234', user.password)
+      ctx = getCloudflareContext();
+      if (ctx?.env) {
+        envKeys = Object.keys(ctx.env);
+        if (ctx.env.school_db) {
+           d1_keys = Object.keys(ctx.env.school_db);
+        }
       }
-    } catch (e: any) {
-      bcryptError = e.message
-    }
-    
+    } catch (e) {}
+
+    processEnvKeys = Object.keys(process.env).filter(k => k.includes('school') || k.includes('db'));
+
     return NextResponse.json({
-      d1_status,
-      user_found: !!user,
-      dbError,
-      bcryptResult,
-      bcryptError,
-      proxy
+      hasCtx: !!ctx,
+      envKeys,
+      processEnvKeys,
+      school_db_in_process,
+      d1_keys
     })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
