@@ -10,8 +10,8 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "pages:build": "npx prisma generate && npx @cloudflare/next-on-pages",
-    "pages:deploy": "npm run pages:build && wrangler pages deploy .vercel/output/static"
+    "cf:build": "prisma generate && next build && opennextjs-cloudflare build",
+    "cf:deploy": "npm run cf:build && wrangler deploy"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -19,6 +19,7 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",
     "@hookform/resolvers": "^5.5.7",
+    "@opennextjs/cloudflare": "^1.20.2",
     "@prisma/client": "^5.22.0",
     "@radix-ui/react-accordion": "^1.2.20",
     "@radix-ui/react-avatar": "^1.2.6",
@@ -53,7 +54,6 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@cloudflare/next-on-pages": "^1.13.16",
     "@prisma/adapter-d1": "^7.9.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

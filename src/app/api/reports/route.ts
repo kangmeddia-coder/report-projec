@@ -84,4 +84,3 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(report, { status: 201 })
 }
  
-export const runtime = 'edge'; 
