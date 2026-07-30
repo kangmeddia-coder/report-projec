@@ -7,6 +7,10 @@
 		"nodejs_compat",
 		"global_fetch_strictly_public"
 	],
+	"vars": {
+		"AUTH_SECRET": "35e38d7c86a2414777d9c6dbbbbf4b98",
+		"AUTH_TRUST_HOST": "true"
+	},
 	"assets": {
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
