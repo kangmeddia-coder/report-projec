@@ -71,4 +71,4 @@ export default async function EditReportPage({ params }: PageProps) {
   )
 }
  
-export const runtime = 'edge'; 
+ 

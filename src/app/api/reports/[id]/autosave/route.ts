@@ -25,4 +25,4 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   return NextResponse.json({ success: true, savedAt: new Date() })
 }
  
-export const runtime = 'edge'; 
+ 
