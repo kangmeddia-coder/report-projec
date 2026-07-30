@@ -214,3 +214,5 @@ export default function NewReportPage() {
     </div>
   )
 }
+ 
+export const runtime = 'edge'; 

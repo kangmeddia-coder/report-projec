@@ -302,3 +302,5 @@ export default async function ReportPreviewPage({ params }: PageProps) {
     </div>
   )
 }
+ 
+export const runtime = 'edge'; 

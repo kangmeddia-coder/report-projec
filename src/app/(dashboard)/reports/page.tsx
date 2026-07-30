@@ -19,3 +19,5 @@ export default async function ReportsPage() {
 
   return <ReportsClient reports={JSON.parse(JSON.stringify(reports))} userRole={user?.role} />
 }
+ 
+export const runtime = 'edge'; 
