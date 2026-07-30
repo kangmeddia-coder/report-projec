@@ -1,4 +1,4 @@
-import ReportsClient from '@/components/report/ReportsClient'
+﻿import ReportsClient from '@/components/report/ReportsClient'
 import { auth } from '@/lib/auth'
 import { getPrisma } from '@/lib/prisma'
 
@@ -19,5 +19,3 @@ export default async function ReportsPage() {
 
   return <ReportsClient reports={JSON.parse(JSON.stringify(reports))} userRole={user?.role} />
 }
- 
-export const runtime = 'edge'; 

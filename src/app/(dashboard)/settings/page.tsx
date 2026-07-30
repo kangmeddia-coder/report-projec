@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+﻿import { auth } from '@/lib/auth'
 import { getPrisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 
@@ -63,5 +63,3 @@ export default async function SettingsPage() {
     </div>
   )
 }
- 
-export const runtime = 'edge'; 

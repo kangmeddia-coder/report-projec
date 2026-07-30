@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+﻿import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Sidebar from '@/components/layout/Sidebar'
 
@@ -25,5 +25,3 @@ export default async function DashboardLayout({
     </div>
   )
 }
- 
-export const runtime = 'edge'; 

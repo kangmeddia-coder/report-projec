@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
@@ -214,5 +214,3 @@ export default function NewReportPage() {
     </div>
   )
 }
- 
-export const runtime = 'edge'; 
