@@ -10,26 +10,19 @@ export function getPrisma() {
     return globalForPrisma.prisma as PrismaClient
   }
 
-  // 1. Local / Node.js development
-  if (process.env.NODE_ENV !== 'production') {
-    globalForPrisma.prisma = new PrismaClient()
+  // 1. Cloudflare Workers runtime (via OpenNext cloudflare-node wrapper)
+  // The D1 binding is injected into process.env
+  const d1 = (process.env as any).school_db
+  if (d1) {
+    const adapter = new PrismaD1(d1)
+    globalForPrisma.prisma = new PrismaClient({ adapter: adapter as any })
     return globalForPrisma.prisma
   }
 
-  // 2. Cloudflare Workers runtime (via OpenNext)
-  try {
-    // Dynamic require to avoid Node.js build-time issues
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { getCloudflareContext } = require('@opennextjs/cloudflare')
-    const ctx = getCloudflareContext()
-    const env = ctx?.env
-    if (env?.school_db) {
-      const adapter = new PrismaD1(env.school_db)
-      globalForPrisma.prisma = new PrismaClient({ adapter: adapter as any })
-      return globalForPrisma.prisma
-    }
-  } catch {
-    // Not in Cloudflare Workers context (e.g. during build time)
+  // 2. Local / Node.js development
+  if (process.env.NODE_ENV !== 'production') {
+    globalForPrisma.prisma = new PrismaClient()
+    return globalForPrisma.prisma
   }
 
   // 3. Fallback - return a no-op proxy during build time static analysis
