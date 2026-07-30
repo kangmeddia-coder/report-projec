@@ -1,53 +1,40 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaD1 } from '@prisma/adapter-d1'
-
 import { getCloudflareContext } from '@opennextjs/cloudflare'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
+// DO NOT cache prisma globally in Cloudflare Workers —
+// getCloudflareContext() must be called per-request and the D1 binding
+// is only available inside an active request context (not at module init time).
+// Caching causes the build-time fallback proxy to persist for all real requests.
 
-export function getPrisma() {
-  if (globalForPrisma.prisma) {
-    return globalForPrisma.prisma as PrismaClient
-  }
-
-  // 1. Cloudflare Workers runtime
+export function getPrisma(): PrismaClient {
+  // 1. Cloudflare Workers runtime — must call getCloudflareContext() fresh each time
   try {
     const ctx = getCloudflareContext()
     if (ctx?.env?.school_db) {
-      const adapter = new PrismaD1(ctx.env.school_db)
-      globalForPrisma.prisma = new PrismaClient({ adapter: adapter as any })
-      return globalForPrisma.prisma
+      const adapter = new PrismaD1(ctx.env.school_db as any)
+      return new PrismaClient({ adapter: adapter as any })
     }
-  } catch (e) {
-    // Throws outside of request context
+  } catch (_e) {
+    // Outside of a Cloudflare request context (e.g. during next build)
   }
 
-  // 2. Local / Node.js development
+  // 2. Local Node.js development
   if (process.env.NODE_ENV !== 'production') {
-    globalForPrisma.prisma = new PrismaClient()
-    return globalForPrisma.prisma
+    return new PrismaClient()
   }
 
-  // 3. Fallback - return a no-op proxy during build time static analysis
-  // This prevents PrismaClientValidationError during `next build`
-  const proxy = new Proxy({} as PrismaClient, {
+  // 3. Build-time fallback — returns a no-op proxy so next build doesn't crash
+  const proxy: any = new Proxy({} as PrismaClient, {
     get(_target, prop) {
       if (prop === '$connect' || prop === '$disconnect') return async () => {}
       if (prop === '$transaction') return async (fn: any) => fn(proxy)
-      // Return a model proxy for any Prisma model access
       return new Proxy({}, {
-        get(_t, method) {
-          return async () => {
-            if (method === 'findMany' || method === 'findFirst' || method === 'findUnique') return null
-            if (method === 'count') return 0
-            return {}
-          }
+        get(_t, _method) {
+          return async () => null
         }
       })
     }
   })
-
   return proxy
 }
