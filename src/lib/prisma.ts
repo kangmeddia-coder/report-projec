@@ -9,7 +9,7 @@ export const getPrisma = (reqEnv?: any) => {
   // 1. Try to use explicit env (passed from getRequestContext)
   if (reqEnv?.school_db) {
     const adapter = new PrismaD1(reqEnv.school_db)
-    return new PrismaClient({ adapter })
+    return new PrismaClient({ adapter: adapter as any })
   }
 
   // 2. Try to get context dynamically if available in edge
@@ -18,7 +18,7 @@ export const getPrisma = (reqEnv?: any) => {
     const { env } = getRequestContext()
     if (env?.school_db) {
       const adapter = new PrismaD1(env.school_db)
-      return new PrismaClient({ adapter })
+      return new PrismaClient({ adapter: adapter as any })
     }
   } catch (e) {
     // Not running on Cloudflare Edge or getRequestContext is not available
