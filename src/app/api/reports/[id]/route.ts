@@ -234,3 +234,5 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   await prisma.report.delete({ where: { id } })
   return NextResponse.json({ success: true })
 }
+ 
+export const runtime = 'edge'; 
