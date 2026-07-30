@@ -1,6 +1,8 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaD1 } from '@prisma/adapter-d1'
 
+import { getCloudflareContext } from '@opennextjs/cloudflare'
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
@@ -10,13 +12,16 @@ export function getPrisma() {
     return globalForPrisma.prisma as PrismaClient
   }
 
-  // 1. Cloudflare Workers runtime (via OpenNext cloudflare-node wrapper)
-  // The D1 binding is injected into process.env
-  const d1 = (process.env as any).school_db
-  if (d1) {
-    const adapter = new PrismaD1(d1)
-    globalForPrisma.prisma = new PrismaClient({ adapter: adapter as any })
-    return globalForPrisma.prisma
+  // 1. Cloudflare Workers runtime
+  try {
+    const ctx = getCloudflareContext()
+    if (ctx?.env?.school_db) {
+      const adapter = new PrismaD1(ctx.env.school_db)
+      globalForPrisma.prisma = new PrismaClient({ adapter: adapter as any })
+      return globalForPrisma.prisma
+    }
+  } catch (e) {
+    // Throws outside of request context
   }
 
   // 2. Local / Node.js development
