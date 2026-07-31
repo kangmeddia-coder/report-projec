@@ -24,6 +24,7 @@ export default function Step8Evidence({ formData, onComplete }: any) {
           { id: '2', url: SAMPLE_IMAGES[1].url, caption: 'ภาพที่ 2: ครูและบุคลากรเข้าร่วมกิจกรรม' },
         ]
   )
+  const [uploadingId, setUploadingId] = useState<string | null>(null)
 
   const toggle = (key: string, val: boolean) => setDocs(p => ({ ...p, [key]: val }))
 
@@ -44,15 +45,45 @@ export default function Step8Evidence({ formData, onComplete }: any) {
     setPhotos(prev => prev.map(p => p.id === id ? { ...p, [field]: cleanVal } : p))
   }
 
+  // Compress image to max 600px width/height and 60% JPEG quality to fit D1 SQL limits
   const handleFileUpload = (id: string, file: File) => {
     if (!file) return
+    setUploadingId(id)
+
+    const img = new Image()
     const reader = new FileReader()
+
     reader.onload = (e) => {
-      const dataUrl = e.target?.result as string
-      if (dataUrl) {
-        updatePhoto(id, 'url', dataUrl)
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let width = img.width
+        let height = img.height
+        const maxDim = 600
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width)
+            width = maxDim
+          } else {
+            width = Math.round((width * maxDim) / height)
+            height = maxDim
+          }
+        }
+
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx?.drawImage(img, 0, 0, width, height)
+
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6)
+        updatePhoto(id, 'url', compressedDataUrl)
+        setUploadingId(null)
       }
+
+      img.onerror = () => setUploadingId(null)
+      img.src = e.target?.result as string
     }
+
     reader.readAsDataURL(file)
   }
 
@@ -113,7 +144,7 @@ export default function Step8Evidence({ formData, onComplete }: any) {
         </div>
       </div>
 
-      {/* 2. Photo Attachment Section (File Upload OR Image URL) */}
+      {/* 2. Photo Attachment Section */}
       <div className="border-t border-slate-100 pt-6">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -158,6 +189,7 @@ export default function Step8Evidence({ formData, onComplete }: any) {
                     {index + 1}
                   </span>
                   ภาพประกอบที่ {index + 1}
+                  {uploadingId === photo.id && <span className="text-[10px] text-blue-600 animate-pulse">⏳ กำลังย่อรูป...</span>}
                 </span>
                 {photos.length > 1 && (
                   <button
@@ -184,7 +216,7 @@ export default function Step8Evidence({ formData, onComplete }: any) {
                     }}
                     className="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1">รองรับไฟล์ .JPG, .PNG, .WEBP</p>
+                  <p className="text-[10px] text-slate-400 mt-1">ย่อขนาดอัตโนมัติ (.JPG, .PNG, .WEBP)</p>
                 </div>
 
                 {/* Method B: Direct URL */}
@@ -194,7 +226,7 @@ export default function Step8Evidence({ formData, onComplete }: any) {
                   </label>
                   <input
                     type="text"
-                    value={photo.url}
+                    value={photo.url.startsWith('data:') ? '(อัปโหลดรูปจากเครื่องเรียบร้อยแล้ว)' : photo.url}
                     onChange={(e) => updatePhoto(photo.id, 'url', e.target.value)}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="https://images.unsplash.com/..."
