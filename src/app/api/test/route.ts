@@ -1,46 +1,28 @@
 import { NextResponse } from 'next/server'
 import { getCloudflareContext } from '@opennextjs/cloudflare'
-import { getPrisma } from '@/lib/prisma'
-import { compare } from 'bcrypt-ts'
 
 export async function GET() {
   try {
     const ctx = getCloudflareContext()
-    const hasD1 = !!ctx?.env?.school_db
+    const d1 = ctx?.env?.school_db as any
 
-    const prisma = getPrisma()
-    
-    let user: any = null
-    let dbError: string | null = null
-    try {
-      user = await prisma.user.findUnique({
-        where: { email: 'admin@school.ac.th' },
-        select: { id: true, email: true, password: true }
-      })
-    } catch (e: any) {
-      dbError = e.message
+    if (!d1) {
+      return NextResponse.json({ error: 'No D1 binding found' })
     }
 
-    let bcryptOk: boolean | null = null
-    let bcryptError: string | null = null
-    if (user) {
-      try {
-        bcryptOk = await compare('admin1234', user.password)
-      } catch (e: any) {
-        bcryptError = e.message
-      }
-    }
+    // Query D1 directly (bypass Prisma) to verify data exists
+    const usersResult = await d1.prepare('SELECT id, email, password FROM "User" LIMIT 5').all()
+    const tablesResult = await d1.prepare("SELECT name FROM sqlite_master WHERE type='table'").all()
 
     return NextResponse.json({
-      hasD1,
-      userFound: !!user,
-      userId: user?.id,
-      passwordHash: user?.password?.substring(0, 10) + '...',
-      bcryptOk,
-      dbError,
-      bcryptError,
+      tables: tablesResult?.results,
+      users: usersResult?.results?.map((u: any) => ({
+        id: u.id,
+        email: u.email,
+        passwordStart: u.password?.substring(0, 15) + '...'
+      })),
     })
   } catch (e: any) {
-    return NextResponse.json({ error: e.message, stack: e.stack }, { status: 500 })
+    return NextResponse.json({ error: e.message, stack: e.stack?.substring(0, 800) }, { status: 500 })
   }
 }
