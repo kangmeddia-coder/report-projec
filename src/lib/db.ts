@@ -79,8 +79,7 @@ export async function getReportById(id: string) {
              s.name as schoolName, s.address as schoolAddress,
              s.district as schoolDistrict, s.affiliation as schoolAffiliation,
              s.ministry as schoolMinistry, s.principalName as schoolPrincipalName,
-             s.planHeadName as schoolPlanHeadName, s.fontFamily as schoolFontFamily,
-             s.paperSize as schoolPaperSize
+             s.planHeadName as schoolPlanHeadName
       FROM "Report" r
       LEFT JOIN "User" u ON r.authorId = u.id
       LEFT JOIN "School" s ON r.schoolId = s.id
@@ -131,8 +130,6 @@ export async function getReportById(id: string) {
       ministry: (report as any).schoolMinistry,
       principalName: (report as any).schoolPrincipalName,
       planHeadName: (report as any).schoolPlanHeadName,
-      fontFamily: (report as any).schoolFontFamily,
-      paperSize: (report as any).schoolPaperSize,
     } : null,
     project: project || null,
     budget: budget || null,
@@ -387,14 +384,13 @@ export async function updateSchool(schoolId: string, data: any) {
   const now = new Date().toISOString()
   await safeQuery(() => d1.prepare(`
     UPDATE "School" SET name=?,address=?,district=?,affiliation=?,ministry=?,
-      principalName=?,planHeadName=?,fontFamily=?,paperSize=?,docNumberFormat=?,updatedAt=?
+      principalName=?,planHeadName=?,updatedAt=?
     WHERE id=?
   `).bind(
     data.name ?? null, data.address ?? null, data.district ?? null,
     data.affiliation ?? null, data.ministry ?? null,
     data.principalName ?? null, data.planHeadName ?? null,
-    data.fontFamily ?? 'Sarabun', data.paperSize ?? 'A4',
-    data.docNumberFormat ?? null, now, schoolId
+    now, schoolId
   ).run(), null)
   return { id: schoolId, ...data, updatedAt: now }
 }
