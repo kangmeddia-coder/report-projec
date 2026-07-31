@@ -1,14 +1,12 @@
-﻿import { auth } from '@/lib/auth'
-import { getPrisma } from '@/lib/prisma'
+import { auth } from '@/lib/auth'
+import { getSchool } from '@/lib/db'
 import { redirect } from 'next/navigation'
 
 export default async function SettingsPage() {
   const session = await auth()
   if (!session) redirect('/login')
   const user = session.user as any
-  const prisma = getPrisma()
-
-  const school = user.schoolId ? await prisma.school.findUnique({ where: { id: user.schoolId } }) : null
+  const school = user.schoolId ? await getSchool(user.schoolId) : null
 
   return (
     <div className="p-8 max-w-3xl animate-fadeIn">

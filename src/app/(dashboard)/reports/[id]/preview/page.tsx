@@ -1,5 +1,5 @@
 import { auth } from '@/lib/auth'
-import { getPrisma } from '@/lib/prisma'
+import { getReportById } from '@/lib/db'
 import { redirect, notFound } from 'next/navigation'
 import { getStatusLabel, getStatusColor, getSatisfactionLevel, formatCurrency, getQualityLevel } from '@/lib/utils'
 import Link from 'next/link'
@@ -14,24 +14,7 @@ export default async function ReportPreviewPage({ params }: PageProps) {
   const session = await auth()
   if (!session) redirect('/login')
 
-  const prisma = getPrisma()
-  const report = await prisma.report.findUnique({
-    where: { id },
-    include: {
-      author: true,
-      school: true,
-      project: true,
-      budget: true,
-      pdcaItems: { orderBy: { order: 'asc' } },
-      objectives: { orderBy: { order: 'asc' } },
-      achievementScore: true,
-      satisfactionSurvey: { include: { answers: { orderBy: { questionNo: 'asc' } } } },
-      reportSummary: true,
-      evidenceDocs: true,
-      signatories: true,
-    },
-  })
-
+  const report = await getReportById(id) as any
   if (!report) notFound()
 
   const pdcaByPhase = {

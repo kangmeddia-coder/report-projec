@@ -1,21 +1,11 @@
-﻿import ReportsClient from '@/components/report/ReportsClient'
+import ReportsClient from '@/components/report/ReportsClient'
 import { auth } from '@/lib/auth'
-import { getPrisma } from '@/lib/prisma'
+import { getReports } from '@/lib/db'
 
 export default async function ReportsPage() {
   const session = await auth()
   const user = session?.user as any
-  const where = user?.role === 'TEACHER' ? { authorId: user?.id } : {}
-  const prisma = getPrisma()
-
-  const reports = await prisma.report.findMany({
-    where,
-    include: {
-      author: { select: { name: true } },
-      budget: true,
-    },
-    orderBy: { updatedAt: 'desc' },
-  })
+  const reports = await getReports(user?.id, user?.role)
 
   return <ReportsClient reports={JSON.parse(JSON.stringify(reports))} userRole={user?.role} />
 }

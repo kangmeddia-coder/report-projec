@@ -1,31 +1,22 @@
 import { auth } from '@/lib/auth'
-import { getPrisma } from '@/lib/prisma'
+import { getReports } from '@/lib/db'
 import { formatCurrency, getStatusLabel, getStatusColor } from '@/lib/utils'
 import Link from 'next/link'
 
 async function getDashboardData(userId: string, role: string) {
-  const where = role === 'TEACHER' ? { authorId: userId } : {}
-  const prisma = getPrisma()
-  
-  const [reports, budgets] = await Promise.all([
-    prisma.report.findMany({
-      where,
-      include: { author: { select: { name: true } }, budget: true },
-      orderBy: { updatedAt: 'desc' },
-    }),
-    prisma.budget.findMany({ where: { report: where } }),
-  ])
+  const reports = await getReports(userId, role)
+  const budgets = reports.map((r: any) => r.budget).filter(Boolean)
 
   const stats = {
     total: reports.length,
-    draft: reports.filter(r => r.status === 'DRAFT').length,
-    inProgress: reports.filter(r => r.status === 'IN_PROGRESS').length,
-    submitted: reports.filter(r => r.status === 'SUBMITTED').length,
-    approved: reports.filter(r => r.status === 'APPROVED').length,
-    completed: reports.filter(r => r.status === 'COMPLETED').length,
-    totalBudgetApproved: budgets.reduce((s, b) => s + b.approved, 0),
-    totalBudgetUsed: budgets.reduce((s, b) => s + b.used, 0),
-    totalBudgetRemaining: budgets.reduce((s, b) => s + b.remaining, 0),
+    draft: reports.filter((r: any) => r.status === 'DRAFT').length,
+    inProgress: reports.filter((r: any) => r.status === 'IN_PROGRESS').length,
+    submitted: reports.filter((r: any) => r.status === 'SUBMITTED').length,
+    approved: reports.filter((r: any) => r.status === 'APPROVED').length,
+    completed: reports.filter((r: any) => r.status === 'COMPLETED').length,
+    totalBudgetApproved: budgets.reduce((s: number, b: any) => s + (b?.approved || 0), 0),
+    totalBudgetUsed: budgets.reduce((s: number, b: any) => s + (b?.used || 0), 0),
+    totalBudgetRemaining: budgets.reduce((s: number, b: any) => s + (b?.remaining || 0), 0),
   }
 
   return { reports, stats }
@@ -133,7 +124,7 @@ export default async function DashboardPage() {
           <div className="py-16 text-center">
             <div className="text-5xl mb-3">📋</div>
             <p className="text-slate-500 font-medium">ยังไม่มีรายงาน</p>
-            <p className="text-slate-400 text-sm mt-1">กดปุ่ม "สร้างรายงานใหม่" เพื่อเริ่มต้น</p>
+            <p className="text-slate-400 text-sm mt-1">กดปุ่ม &quot;สร้างรายงานใหม่&quot; เพื่อเริ่มต้น</p>
             <Link href="/reports/new" className="mt-4 inline-block bg-blue-600 text-white px-6 py-2 rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors">
               สร้างรายงานใหม่
             </Link>
@@ -153,7 +144,7 @@ export default async function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {reports.slice(0, 10).map((report) => (
+                {reports.slice(0, 10).map((report: any) => (
                   <tr key={report.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <p className="font-medium text-slate-800 line-clamp-1 max-w-48">{report.title}</p>
@@ -166,7 +157,7 @@ export default async function DashboardPage() {
                       <span className="text-slate-700 font-medium">{report.fiscalYear}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-slate-600">{report.author.name}</p>
+                      <p className="text-slate-600">{report.author?.name}</p>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
