@@ -4,6 +4,7 @@ import { redirect, notFound } from 'next/navigation'
 import { getStatusLabel, getStatusColor, getSatisfactionLevel, formatCurrency, getQualityLevel } from '@/lib/utils'
 import Link from 'next/link'
 import PrintButton from '@/components/report/PrintButton'
+import WorkflowBar from '@/components/report/WorkflowBar'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -13,45 +14,55 @@ export default async function ReportPreviewPage({ params }: PageProps) {
   const { id } = await params
   const session = await auth()
   if (!session) redirect('/login')
+  const user = session.user as any
 
   const report = await getReportById(id) as any
   if (!report) notFound()
 
   const pdcaByPhase = {
-    P: report.pdcaItems.filter(i => i.phase === 'P'),
-    D: report.pdcaItems.filter(i => i.phase === 'D'),
-    C: report.pdcaItems.filter(i => i.phase === 'C'),
-    A: report.pdcaItems.filter(i => i.phase === 'A'),
+    P: (report.pdcaItems || []).filter((i: any) => i.phase === 'P'),
+    D: (report.pdcaItems || []).filter((i: any) => i.phase === 'D'),
+    C: (report.pdcaItems || []).filter((i: any) => i.phase === 'C'),
+    A: (report.pdcaItems || []).filter((i: any) => i.phase === 'A'),
   }
 
-  const sigReporter = report.signatories.find(s => s.role === 'REPORTER')
-  const sigPlanHead = report.signatories.find(s => s.role === 'PLAN_HEAD')
-  const sigPrincipal = report.signatories.find(s => s.role === 'PRINCIPAL')
+  const sigReporter = (report.signatories || []).find((s: any) => s.role === 'REPORTER')
+  const sigPlanHead = (report.signatories || []).find((s: any) => s.role === 'PLAN_HEAD')
+  const sigPrincipal = (report.signatories || []).find((s: any) => s.role === 'PRINCIPAL')
 
   const totalSatisfactionAvg = report.satisfactionSurvey?.avgTotal || 0
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-slate-100 pb-12">
       {/* Top bar - no print */}
       <div className="no-print bg-white border-b border-slate-200 px-8 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-4">
-          <Link href="/reports" className="text-slate-500 hover:text-slate-700 text-sm">← กลับ</Link>
+          <Link href="/reports" className="text-slate-500 hover:text-slate-700 text-sm font-medium">← กลับ</Link>
           <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(report.status)}`}>
             {getStatusLabel(report.status)}
           </span>
           <span className="text-sm text-slate-500">ความสมบูรณ์: {report.completeness}%</span>
         </div>
         <div className="flex items-center gap-3">
-          <Link href={`/reports/${id}`} className="text-sm text-blue-600 hover:text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50">
+          <Link href={`/reports/${id}`} className="text-sm text-blue-600 hover:text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 font-medium">
             ✏️ แก้ไข
           </Link>
           <PrintButton />
         </div>
       </div>
 
-      {/* A4 Document */}
-      <div className="max-w-4xl mx-auto py-8 px-4">
-        <div className="bg-white shadow-xl rounded-sm" style={{ fontFamily: 'Sarabun, sans-serif', fontSize: '16px', lineHeight: '1.8' }}>
+      {/* Main Container */}
+      <div className="max-w-4xl mx-auto py-6 px-4">
+        {/* Workflow Action & Comment Bar */}
+        <WorkflowBar
+          reportId={id}
+          status={report.status}
+          userRole={user.role}
+          comments={report.comments || []}
+        />
+
+        {/* A4 Document */}
+        <div className="bg-white shadow-xl rounded-sm print-doc" style={{ fontFamily: 'Sarabun, sans-serif', fontSize: '16px', lineHeight: '1.8' }}>
 
           {/* ===== หน้าปก ===== */}
           <div className="a4-preview-page border-b-2 border-dashed border-slate-200" style={{ padding: '60px 70px', minHeight: '700px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
@@ -141,7 +152,7 @@ export default async function ReportPreviewPage({ params }: PageProps) {
           )}
 
           {/* ===== PDCA ===== */}
-          {report.pdcaItems.length > 0 && (
+          {report.pdcaItems && report.pdcaItems.length > 0 && (
             <div className="p-10 border-b border-slate-100">
               <h2 className="text-lg font-bold text-blue-800 border-b-2 border-blue-200 pb-2 mb-5">ส่วนที่ 4 วิธีดำเนินการโครงการ (PDCA)</h2>
               <table className="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
@@ -169,7 +180,7 @@ export default async function ReportPreviewPage({ params }: PageProps) {
                       C: 'C: ประเมิน',
                       A: 'A: สรุปผล',
                     }
-                    return phaseItems.map((item, i) => (
+                    return phaseItems.map((item: any, i: number) => (
                       <tr key={item.id} className={phaseColors[phase]}>
                         <td className="px-3 py-2 font-medium text-xs">{i === 0 ? phaseLabels[phase] : ''}</td>
                         <td className="px-3 py-2">{item.activity}</td>
@@ -185,7 +196,7 @@ export default async function ReportPreviewPage({ params }: PageProps) {
           )}
 
           {/* ===== วัตถุประสงค์ ===== */}
-          {report.objectives.length > 0 && (
+          {report.objectives && report.objectives.length > 0 && (
             <div className="p-10 border-b border-slate-100">
               <h2 className="text-lg font-bold text-blue-800 border-b-2 border-blue-200 pb-2 mb-5">ส่วนที่ 5 สรุปผลตามวัตถุประสงค์</h2>
               <table className="w-full text-sm border border-slate-200">
@@ -198,7 +209,7 @@ export default async function ReportPreviewPage({ params }: PageProps) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {report.objectives.map(obj => (
+                  {report.objectives.map((obj: any) => (
                     <tr key={obj.id} className="hover:bg-slate-50">
                       <td className="px-3 py-2">{obj.objective}</td>
                       <td className="px-3 py-2 text-xs">{obj.quantitativeTarget}</td>
@@ -285,5 +296,3 @@ export default async function ReportPreviewPage({ params }: PageProps) {
     </div>
   )
 }
- 
- 

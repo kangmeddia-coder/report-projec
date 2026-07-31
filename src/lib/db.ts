@@ -63,7 +63,7 @@ export async function getReportById(id: string) {
   if (!d1) return null
 
   const [report, project, budget, pdcaItems, objectives, achievementScore,
-    satisfactionSurvey, reportSummary, evidenceDocs, activityPhotos, signatories] =
+    satisfactionSurvey, reportSummary, evidenceDocs, activityPhotos, signatories, comments] =
     await Promise.all([
       d1.prepare(`
         SELECT r.*, u.name as authorName, u.email as authorEmail,
@@ -87,6 +87,13 @@ export async function getReportById(id: string) {
       d1.prepare(`SELECT * FROM "EvidenceDocument" WHERE reportId = ?`).bind(id).all(),
       d1.prepare(`SELECT * FROM "ActivityPhoto" WHERE reportId = ? ORDER BY "order" ASC`).bind(id).all(),
       d1.prepare(`SELECT * FROM "Signatory" WHERE reportId = ?`).bind(id).all(),
+      d1.prepare(`
+        SELECT c.*, u.name as authorName, u.role as authorRole
+        FROM "WorkflowComment" c
+        LEFT JOIN "User" u ON c.authorId = u.id
+        WHERE c.reportId = ?
+        ORDER BY c.createdAt ASC
+      `).bind(id).all(),
     ])
 
   if (!report) return null
@@ -123,6 +130,7 @@ export async function getReportById(id: string) {
     evidenceDocs: evidenceDocs?.results || [],
     activityPhotos: activityPhotos?.results || [],
     signatories: signatories?.results || [],
+    comments: comments?.results || [],
   }
 }
 
@@ -268,6 +276,21 @@ export async function deleteReport(id: string) {
   const d1 = getD1()
   if (!d1) throw new Error('D1 not available')
   await d1.prepare(`DELETE FROM "Report" WHERE id=?`).bind(id).run()
+}
+
+export async function updateReportStatus(id: string, status: string, comment?: string, authorId?: string) {
+  const d1 = getD1()
+  if (!d1) throw new Error('D1 not available')
+
+  const now = new Date().toISOString()
+  await d1.prepare(`UPDATE "Report" SET status=?, updatedAt=? WHERE id=?`).bind(status, now, id).run()
+
+  if (comment && authorId) {
+    await d1.prepare(`INSERT INTO "WorkflowComment" (id, reportId, content, authorId, createdAt) VALUES (?,?,?,?,?)`)
+      .bind(newId(), id, comment, authorId, now).run()
+  }
+
+  return { id, status, updatedAt: now }
 }
 
 export async function getSchool(schoolId: string) {
