@@ -39,6 +39,8 @@ export default async function ReportPreviewPage({ params }: PageProps) {
     evidenceMap[doc.docType] = Boolean(doc.hasDoc)
   }
 
+  const defaultFallbackImage = 'https://images.unsplash.com/photo-1577896851231-70ef18881754?w=600&auto=format&fit=crop&q=80'
+
   return (
     <div className="min-h-screen bg-slate-100 pb-12">
       {/* Top bar - no print */}
@@ -297,23 +299,33 @@ export default async function ReportPreviewPage({ params }: PageProps) {
               </div>
             </div>
 
-            {/* Activity Photos Gallery (Attached Image URLs) */}
+            {/* Activity Photos Gallery (Attached Image URLs / File Uploads) */}
             {report.activityPhotos && report.activityPhotos.length > 0 && (
               <div className="mt-6 pt-6 border-t border-slate-100">
                 <h3 className="text-sm font-semibold text-slate-700 mb-4">🖼️ ภาพประกอบการดำเนินกิจกรรม</h3>
                 <div className="grid grid-cols-2 gap-6">
-                  {report.activityPhotos.map((photo: any, index: number) => (
-                    <div key={photo.id || index} className="border border-slate-200 rounded-xl p-3 bg-white text-center shadow-sm">
-                      <div className="overflow-hidden rounded-lg bg-slate-100 max-h-56 flex items-center justify-center mb-2">
-                        <img
-                          src={photo.url}
-                          alt={photo.caption || `ภาพประกอบกิจกรรมที่ ${index + 1}`}
-                          className="w-full h-auto max-h-56 object-cover rounded-lg"
-                        />
+                  {report.activityPhotos.map((photo: any, index: number) => {
+                    let imageUrl = photo.url
+                    if (imageUrl && !imageUrl.startsWith('http://') && !imageUrl.startsWith('https://') && !imageUrl.startsWith('data:')) {
+                      imageUrl = 'https://' + imageUrl
+                    }
+                    return (
+                      <div key={photo.id || index} className="border border-slate-200 rounded-xl p-3 bg-white text-center shadow-sm">
+                        <div className="overflow-hidden rounded-lg bg-slate-100 max-h-60 flex items-center justify-center mb-2">
+                          <img
+                            src={imageUrl || defaultFallbackImage}
+                            alt={photo.caption || `ภาพประกอบกิจกรรมที่ ${index + 1}`}
+                            referrerPolicy="no-referrer"
+                            className="w-full h-auto max-h-60 object-cover rounded-lg"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = defaultFallbackImage
+                            }}
+                          />
+                        </div>
+                        <p className="text-xs font-semibold text-slate-800">{photo.caption || `ภาพที่ ${index + 1}`}</p>
                       </div>
-                      <p className="text-xs font-medium text-slate-700">{photo.caption || `ภาพที่ ${index + 1}`}</p>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )}

@@ -8,13 +8,21 @@ interface ActivityPhoto {
   caption: string
 }
 
+const SAMPLE_IMAGES = [
+  { label: 'ภาพการอบรม/ประชุม', url: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?w=600&auto=format&fit=crop&q=80' },
+  { label: 'ภาพกิจกรรมนักเรียน', url: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=600&auto=format&fit=crop&q=80' },
+  { label: 'ภาพการมอบเกียรติบัตร', url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&auto=format&fit=crop&q=80' },
+]
+
 export default function Step8Evidence({ formData, onComplete }: any) {
   const [docs, setDocs] = useState<Record<string, boolean>>(formData.evidenceDocs || {})
   const [photos, setPhotos] = useState<ActivityPhoto[]>(
-    formData.activityPhotos || [
-      { id: '1', url: '', caption: 'ภาพที่ 1: การดำเนินกิจกรรม' },
-      { id: '2', url: '', caption: 'ภาพที่ 2: ผู้เข้าร่วมกิจกรรม' },
-    ]
+    formData.activityPhotos && formData.activityPhotos.length > 0
+      ? formData.activityPhotos
+      : [
+          { id: '1', url: SAMPLE_IMAGES[0].url, caption: 'ภาพที่ 1: การดำเนินกิจกรรมตามโครงการ' },
+          { id: '2', url: SAMPLE_IMAGES[1].url, caption: 'ภาพที่ 2: ครูและบุคลากรเข้าร่วมกิจกรรม' },
+        ]
   )
 
   const toggle = (key: string, val: boolean) => setDocs(p => ({ ...p, [key]: val }))
@@ -27,7 +35,25 @@ export default function Step8Evidence({ formData, onComplete }: any) {
   }
 
   const updatePhoto = (id: string, field: 'url' | 'caption', value: string) => {
-    setPhotos(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p))
+    let cleanVal = value
+    if (field === 'url' && value.trim()) {
+      if (!value.startsWith('http://') && !value.startsWith('https://') && !value.startsWith('data:')) {
+        cleanVal = 'https://' + value.trim()
+      }
+    }
+    setPhotos(prev => prev.map(p => p.id === id ? { ...p, [field]: cleanVal } : p))
+  }
+
+  const handleFileUpload = (id: string, file: File) => {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string
+      if (dataUrl) {
+        updatePhoto(id, 'url', dataUrl)
+      }
+    }
+    reader.readAsDataURL(file)
   }
 
   const removePhoto = (id: string) => {
@@ -87,68 +113,127 @@ export default function Step8Evidence({ formData, onComplete }: any) {
         </div>
       </div>
 
-      {/* 2. Image URL Attachment for Report Document */}
+      {/* 2. Photo Attachment Section (File Upload OR Image URL) */}
       <div className="border-t border-slate-100 pt-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-sm font-semibold text-slate-700">2. ลิงก์รูปภาพประกอบกิจกรรม (นำมาแสดงในรายงาน)</h3>
-            <p className="text-xs text-slate-400 mt-0.5">วาง URL ลิงก์รูปภาพ (เช่น https://...png/jpg) เพื่อนำไปแสดงในหน้ารายงานผล</p>
+            <h3 className="text-sm font-semibold text-slate-700">2. แนบรูปภาพประกอบกิจกรรม (แสดงในเล่มรายงาน)</h3>
+            <p className="text-xs text-slate-400 mt-0.5">เลือกไฟล์ภาพจากเครื่อง หรือ วาง URL ลิงก์รูปภาพ (เช่น https://...)</p>
           </div>
           <button
             type="button"
             onClick={addPhoto}
-            className="text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 font-semibold px-3 py-1.5 rounded-lg border border-blue-200 transition-colors"
+            className="text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 font-semibold px-3.5 py-2 rounded-xl border border-blue-200 transition-all shadow-sm"
           >
-            + เพิ่มลิงก์ภาพ
+            + เพิ่มรูปภาพ
           </button>
+        </div>
+
+        {/* Preset Sample Images Quick Buttons */}
+        <div className="mb-4 bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex items-center gap-2 flex-wrap text-xs">
+          <span className="font-semibold text-blue-800">💡 เลือกภาพตัวอย่างลองใช้:</span>
+          {SAMPLE_IMAGES.map((sample) => (
+            <button
+              key={sample.label}
+              type="button"
+              onClick={() => {
+                setPhotos(prev => [
+                  ...prev,
+                  { id: Date.now().toString(), url: sample.url, caption: sample.label }
+                ])
+              }}
+              className="bg-white text-blue-700 border border-blue-200 px-2.5 py-1 rounded-lg hover:bg-blue-100 transition-colors"
+            >
+              + {sample.label}
+            </button>
+          ))}
         </div>
 
         <div className="space-y-4">
           {photos.map((photo, index) => (
-            <div key={photo.id} className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3">
+            <div key={photo.id} className="border border-slate-200 rounded-2xl p-4 bg-slate-50/50 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-600">ภาพที่ {index + 1}</span>
+                <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
+                    {index + 1}
+                  </span>
+                  ภาพประกอบที่ {index + 1}
+                </span>
                 {photos.length > 1 && (
                   <button
                     type="button"
                     onClick={() => removePhoto(photo.id)}
-                    className="text-xs text-red-500 hover:underline"
+                    className="text-xs text-red-500 hover:text-red-700 font-medium hover:underline"
                   >
-                    ลบ
+                    ลบภาพนี้
                   </button>
                 )}
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">URL ลิงก์ไฟล์รูปภาพ <span className="text-red-500">*</span></label>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Method A: File Upload */}
+                <div className="bg-white p-3 rounded-xl border border-slate-200">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    📁 เลือกไฟล์ภาพจากคอมพิวเตอร์ / มือถือ
+                  </label>
                   <input
-                    type="url"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) handleFileUpload(photo.id, e.target.files[0])
+                    }}
+                    className="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">รองรับไฟล์ .JPG, .PNG, .WEBP</p>
+                </div>
+
+                {/* Method B: Direct URL */}
+                <div className="bg-white p-3 rounded-xl border border-slate-200">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    🔗 หรือ วาง URL ลิงก์รูปภาพ
+                  </label>
+                  <input
+                    type="text"
                     value={photo.url}
                     onChange={(e) => updatePhoto(photo.id, 'url', e.target.value)}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="https://example.com/photo.jpg"
+                    placeholder="https://images.unsplash.com/..."
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">คำอธิบายภาพ</label>
-                  <input
-                    type="text"
-                    value={photo.caption}
-                    onChange={(e) => updatePhoto(photo.id, 'caption', e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="คำอธิบายภาพกิจกรรม..."
-                  />
+                  <p className="text-[10px] text-slate-400 mt-1">ตัวอย่าง: https://domain.com/image.jpg</p>
                 </div>
               </div>
-              {photo.url.trim() && (
-                <div className="mt-2 text-center bg-white p-2 border border-slate-200 rounded-lg max-w-xs mx-auto">
-                  <img
-                    src={photo.url}
-                    alt={photo.caption}
-                    className="max-h-36 mx-auto object-contain rounded"
-                    onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
-                  />
-                  <p className="text-[11px] text-slate-500 mt-1">{photo.caption}</p>
+
+              {/* Caption */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">คำอธิบายภาพใต้รูป</label>
+                <input
+                  type="text"
+                  value={photo.caption}
+                  onChange={(e) => updatePhoto(photo.id, 'caption', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="คำอธิบายภาพกิจกรรม..."
+                />
+              </div>
+
+              {/* Live Preview */}
+              {photo.url.trim() ? (
+                <div className="mt-3 text-center bg-white p-3 border border-slate-200 rounded-xl max-w-sm mx-auto shadow-sm">
+                  <div className="overflow-hidden rounded-lg max-h-48 bg-slate-100 flex items-center justify-center">
+                    <img
+                      src={photo.url}
+                      alt={photo.caption}
+                      referrerPolicy="no-referrer"
+                      className="max-h-48 w-full object-cover rounded-lg"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1577896851231-70ef18881754?w=600&auto=format&fit=crop&q=80'
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs font-semibold text-slate-700 mt-2">{photo.caption}</p>
+                </div>
+              ) : (
+                <div className="p-3 text-center text-xs text-slate-400 bg-white rounded-xl border border-dashed border-slate-200">
+                  📷 ยังไม่ได้แนบรูปภาพสำหรับภาพประกอบที่ {index + 1}
                 </div>
               )}
             </div>
