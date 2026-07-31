@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import { getReportById } from '@/lib/db'
 import { redirect, notFound } from 'next/navigation'
 import { getStatusLabel, getStatusColor, getSatisfactionLevel, formatCurrency, getQualityLevel } from '@/lib/utils'
+import { EVIDENCE_TYPES } from '@/types'
 import Link from 'next/link'
 import PrintButton from '@/components/report/PrintButton'
 import WorkflowBar from '@/components/report/WorkflowBar'
@@ -32,6 +33,12 @@ export default async function ReportPreviewPage({ params }: PageProps) {
 
   const totalSatisfactionAvg = report.satisfactionSurvey?.avgTotal || 0
 
+  // Evidence Documents Map
+  const evidenceMap: Record<string, boolean> = {}
+  for (const doc of (report.evidenceDocs || [])) {
+    evidenceMap[doc.docType] = Boolean(doc.hasDoc)
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 pb-12">
       {/* Top bar - no print */}
@@ -61,7 +68,7 @@ export default async function ReportPreviewPage({ params }: PageProps) {
           comments={report.comments || []}
         />
 
-        {/* A4 Document */}
+        {/* A4 Document Container */}
         <div className="bg-white shadow-xl rounded-sm print-doc" style={{ fontFamily: 'Sarabun, sans-serif', fontSize: '16px', lineHeight: '1.8' }}>
 
           {/* ===== หน้าปก ===== */}
@@ -129,7 +136,7 @@ export default async function ReportPreviewPage({ params }: PageProps) {
             </div>
           )}
 
-          {/* ===== งบประมาณ ===== */}
+          {/* ===== ส่วนที่ 3: งบประมาณ ===== */}
           {report.budget && (
             <div className="p-10 border-b border-slate-100">
               <h2 className="text-lg font-bold text-blue-800 border-b-2 border-blue-200 pb-2 mb-5">ส่วนที่ 3 งบประมาณ</h2>
@@ -151,7 +158,7 @@ export default async function ReportPreviewPage({ params }: PageProps) {
             </div>
           )}
 
-          {/* ===== PDCA ===== */}
+          {/* ===== ส่วนที่ 4: PDCA ===== */}
           {report.pdcaItems && report.pdcaItems.length > 0 && (
             <div className="p-10 border-b border-slate-100">
               <h2 className="text-lg font-bold text-blue-800 border-b-2 border-blue-200 pb-2 mb-5">ส่วนที่ 4 วิธีดำเนินการโครงการ (PDCA)</h2>
@@ -195,7 +202,7 @@ export default async function ReportPreviewPage({ params }: PageProps) {
             </div>
           )}
 
-          {/* ===== วัตถุประสงค์ ===== */}
+          {/* ===== ส่วนที่ 5: วัตถุประสงค์ ===== */}
           {report.objectives && report.objectives.length > 0 && (
             <div className="p-10 border-b border-slate-100">
               <h2 className="text-lg font-bold text-blue-800 border-b-2 border-blue-200 pb-2 mb-5">ส่วนที่ 5 สรุปผลตามวัตถุประสงค์</h2>
@@ -224,7 +231,7 @@ export default async function ReportPreviewPage({ params }: PageProps) {
             </div>
           )}
 
-          {/* ===== ความสำเร็จ + ความพึงพอใจ ===== */}
+          {/* ===== ส่วนที่ 6: ความสำเร็จ + ความพึงพอใจ ===== */}
           {report.achievementScore && (
             <div className="p-10 border-b border-slate-100">
               <h2 className="text-lg font-bold text-blue-800 border-b-2 border-blue-200 pb-2 mb-5">ส่วนที่ 6 ความสำเร็จและความพึงพอใจ</h2>
@@ -250,7 +257,7 @@ export default async function ReportPreviewPage({ params }: PageProps) {
             </div>
           )}
 
-          {/* ===== สรุปภาพรวม ===== */}
+          {/* ===== ส่วนที่ 7: สรุปภาพรวม ===== */}
           {report.reportSummary && (
             <div className="p-10 border-b border-slate-100">
               <h2 className="text-lg font-bold text-blue-800 border-b-2 border-blue-200 pb-2 mb-5">ส่วนที่ 7 สรุปภาพรวม</h2>
@@ -271,9 +278,50 @@ export default async function ReportPreviewPage({ params }: PageProps) {
             </div>
           )}
 
-          {/* ===== ผู้ลงนาม ===== */}
+          {/* ===== ส่วนที่ 8: เอกสารหลักฐานและภาพประกอบกิจกรรม ===== */}
+          <div className="p-10 border-b border-slate-100">
+            <h2 className="text-lg font-bold text-blue-800 border-b-2 border-blue-200 pb-2 mb-5">ส่วนที่ 8 เอกสารหลักฐานและภาพประกอบกิจกรรม</h2>
+
+            {/* Checklist Table */}
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">รายการเอกสารหลักฐาน</h3>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                {EVIDENCE_TYPES.map(({ key, label }) => (
+                  <div key={key} className="flex items-center justify-between p-2 border border-slate-100 rounded-lg bg-slate-50/50">
+                    <span className="text-slate-700 text-xs">{label}</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${evidenceMap[key] ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-500'}`}>
+                      {evidenceMap[key] ? '✓ มี' : '✗ ไม่มี'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Activity Photos Gallery (Attached Image URLs) */}
+            {report.activityPhotos && report.activityPhotos.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-slate-100">
+                <h3 className="text-sm font-semibold text-slate-700 mb-4">🖼️ ภาพประกอบการดำเนินกิจกรรม</h3>
+                <div className="grid grid-cols-2 gap-6">
+                  {report.activityPhotos.map((photo: any, index: number) => (
+                    <div key={photo.id || index} className="border border-slate-200 rounded-xl p-3 bg-white text-center shadow-sm">
+                      <div className="overflow-hidden rounded-lg bg-slate-100 max-h-56 flex items-center justify-center mb-2">
+                        <img
+                          src={photo.url}
+                          alt={photo.caption || `ภาพประกอบกิจกรรมที่ ${index + 1}`}
+                          className="w-full h-auto max-h-56 object-cover rounded-lg"
+                        />
+                      </div>
+                      <p className="text-xs font-medium text-slate-700">{photo.caption || `ภาพที่ ${index + 1}`}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ===== ส่วนที่ 9: ผู้ลงนาม ===== */}
           <div className="p-10">
-            <div className="grid grid-cols-3 gap-8 text-center mt-12">
+            <div className="grid grid-cols-3 gap-8 text-center mt-8">
               {[
                 { sig: sigReporter, label: 'ผู้รายงาน' },
                 { sig: sigPlanHead, label: 'หัวหน้างานนโยบายและแผน' },

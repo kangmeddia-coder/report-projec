@@ -47,27 +47,45 @@ body {
   background: #94a3b8;
 }
 
-/* Print styles for A4 */
+/* Print styles for A4 Report - hides sidebar & web UI */
 @media print {
+  aside,
+  nav,
+  header,
   .no-print {
     display: none !important;
   }
   
-  .print-only {
-    display: block !important;
-  }
-  
   body {
-    font-size: 14px;
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   
-  .a4-page {
-    width: 210mm;
-    min-height: 297mm;
-    padding: 20mm 25mm;
-    margin: 0;
-    background: white;
-    page-break-after: always;
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+  }
+  
+  .print-doc {
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 15mm 20mm;
   }
 }
 

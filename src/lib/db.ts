@@ -157,41 +157,47 @@ export async function updateReport(id: string, body: any) {
 
   const now = new Date().toISOString()
 
-  // Update main report
-  await d1.prepare(`
-    UPDATE "Report" SET title=?, activityName=?, fiscalYear=?, workGroup=?,
-      status=?, completeness=?, preface=?, lastSavedAt=?, updatedAt=?
-    WHERE id=?
-  `).bind(
-    body.title ?? null, body.activityName ?? null, body.fiscalYear ?? null,
-    body.workGroup ?? null, body.status ?? null, body.completeness ?? 0,
-    body.preface ?? null, now, now, id
-  ).run()
+  // 1. Update main Report table
+  const reportUpdates: string[] = []
+  const reportVals: any[] = []
 
-  // Upsert Budget
-  if (body.approved !== undefined) {
-    const existing = await d1.prepare(`SELECT id FROM "Budget" WHERE reportId=?`).bind(id).first()
-    if (existing) {
-      await d1.prepare(`UPDATE "Budget" SET budgetType=?,approved=?,used=?,remaining=?,updatedAt=? WHERE reportId=?`)
-        .bind(body.budgetType ?? null, body.approved || 0, body.used || 0,
-          body.remaining ?? (body.approved || 0) - (body.used || 0), now, id).run()
-    } else {
-      await d1.prepare(`INSERT INTO "Budget" (id,reportId,budgetType,approved,used,remaining,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?)`)
-        .bind(newId(), id, body.budgetType ?? '', body.approved || 0, body.used || 0,
-          body.remaining ?? (body.approved || 0) - (body.used || 0), now, now).run()
-    }
+  if (body.title !== undefined) { reportUpdates.push('title=?'); reportVals.push(body.title) }
+  if (body.activityName !== undefined) { reportUpdates.push('activityName=?'); reportVals.push(body.activityName) }
+  if (body.fiscalYear !== undefined) { reportUpdates.push('fiscalYear=?'); reportVals.push(body.fiscalYear) }
+  if (body.workGroup !== undefined) { reportUpdates.push('workGroup=?'); reportVals.push(body.workGroup) }
+  if (body.status !== undefined) { reportUpdates.push('status=?'); reportVals.push(body.status) }
+  if (body.completeness !== undefined) { reportUpdates.push('completeness=?'); reportVals.push(body.completeness) }
+  if (body.preface !== undefined) { reportUpdates.push('preface=?'); reportVals.push(body.preface) }
+
+  reportUpdates.push('lastSavedAt=?'); reportVals.push(now)
+  reportUpdates.push('updatedAt=?'); reportVals.push(now)
+
+  if (reportUpdates.length > 0) {
+    await d1.prepare(`UPDATE "Report" SET ${reportUpdates.join(',')} WHERE id=?`)
+      .bind(...reportVals, id).run()
   }
 
-  // Upsert Project
-  if (body.responsiblePerson !== undefined) {
+  // 2. Upsert Project table
+  const hasProjectData = [
+    body.responsiblePerson, body.position, body.schoolName, body.district,
+    body.affiliation, body.ministry, body.strategyItem, body.strategyDetail,
+    body.missionItem, body.missionDetail, body.standardRef, body.standardItem,
+    body.implementationStatus, body.cancellationReason
+  ].some(v => v !== undefined)
+
+  if (hasProjectData) {
     const existing = await d1.prepare(`SELECT id FROM "Project" WHERE reportId=?`).bind(id).first()
     const cols = ['responsiblePerson','position','schoolName','district','affiliation','ministry',
       'strategyItem','strategyDetail','missionItem','missionDetail','standardRef','standardItem',
       'implementationStatus','cancellationReason','updatedAt']
-    const vals = [body.responsiblePerson, body.position, body.schoolName, body.district,
-      body.affiliation, body.ministry, body.strategyItem, body.strategyDetail,
-      body.missionItem, body.missionDetail, body.standardRef, body.standardItem,
-      body.implementationStatus || 'COMPLETED', body.cancellationReason ?? null, now]
+    const vals = [
+      body.responsiblePerson ?? null, body.position ?? null, body.schoolName ?? null,
+      body.district ?? null, body.affiliation ?? null, body.ministry ?? null,
+      body.strategyItem ?? null, body.strategyDetail ?? null,
+      body.missionItem ?? null, body.missionDetail ?? null,
+      body.standardRef ?? null, body.standardItem ?? null,
+      body.implementationStatus || 'COMPLETED', body.cancellationReason ?? null, now
+    ]
     if (existing) {
       await d1.prepare(`UPDATE "Project" SET ${cols.map(c => `${c}=?`).join(',')} WHERE reportId=?`)
         .bind(...vals, id).run()
@@ -201,12 +207,29 @@ export async function updateReport(id: string, body: any) {
     }
   }
 
-  // Replace PDCA Items
+  // 3. Upsert Budget table
+  const hasBudgetData = body.approved !== undefined || body.used !== undefined || body.budgetType !== undefined
+  if (hasBudgetData) {
+    const existing = await d1.prepare(`SELECT id FROM "Budget" WHERE reportId=?`).bind(id).first()
+    const approved = Number(body.approved || 0)
+    const used = Number(body.used || 0)
+    const remaining = approved - used
+    if (existing) {
+      await d1.prepare(`UPDATE "Budget" SET budgetType=?,approved=?,used=?,remaining=?,updatedAt=? WHERE reportId=?`)
+        .bind(body.budgetType ?? null, approved, used, remaining, now, id).run()
+    } else {
+      await d1.prepare(`INSERT INTO "Budget" (id,reportId,budgetType,approved,used,remaining,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?)`)
+        .bind(newId(), id, body.budgetType ?? '', approved, used, remaining, now, now).run()
+    }
+  }
+
+  // 4. Replace PDCA Items
   if (body.pdcaItems) {
     await d1.prepare(`DELETE FROM "PdcaItem" WHERE reportId=?`).bind(id).run()
     let order = 0
     for (const phase of ['P', 'D', 'C', 'A']) {
       for (const item of body.pdcaItems[phase] || []) {
+        if (!item.activity?.trim()) continue
         await d1.prepare(`INSERT INTO "PdcaItem" (id,reportId,phase,activity,startDate,endDate,responsible,"order",createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?)`)
           .bind(newId(), id, phase, item.activity, item.startDate ?? null, item.endDate ?? null,
             item.responsible ?? null, order++, now, now).run()
@@ -214,35 +237,40 @@ export async function updateReport(id: string, body: any) {
     }
   }
 
-  // Replace Objectives
+  // 5. Replace Objectives
   if (body.objectives) {
     await d1.prepare(`DELETE FROM "Objective" WHERE reportId=?`).bind(id).run()
     for (let i = 0; i < body.objectives.length; i++) {
       const obj = body.objectives[i]
+      if (!obj.objective?.trim()) continue
       await d1.prepare(`INSERT INTO "Objective" (id,reportId,objective,quantitativeTarget,qualitativeTarget,quantitativeResult,qualitativeResult,successPercent,"order",createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
         .bind(newId(), id, obj.objective, obj.quantitativeTarget ?? null, obj.qualitativeTarget ?? null,
-          obj.quantitativeResult ?? null, obj.qualitativeResult ?? null, obj.successPercent || 0,
+          obj.quantitativeResult ?? null, obj.qualitativeResult ?? null, Number(obj.successPercent || 0),
           i, now, now).run()
     }
   }
 
-  // Upsert Achievement Score
-  if (body.qualityPercent !== undefined) {
+  // 6. Upsert Achievement Score
+  const hasAchievementData = body.qualityPercent !== undefined || body.quantityTarget !== undefined
+  if (hasAchievementData) {
     const existing = await d1.prepare(`SELECT id FROM "AchievementScore" WHERE reportId=?`).bind(id).first()
+    const qPct = Number(body.qualityPercent || 0)
+    const qLevel = body.qualityLevel || (qPct >= 80 ? 'ยอดเยี่ยม' : qPct >= 70 ? 'ดีเลิศ' : qPct >= 60 ? 'ดี' : qPct >= 50 ? 'ปานกลาง' : 'ปรับปรุง')
     if (existing) {
       await d1.prepare(`UPDATE "AchievementScore" SET qualityPercent=?,qualityLevel=?,quantityTarget=?,quantityActual=?,quantityPercent=?,quantityLevel=?,updatedAt=? WHERE reportId=?`)
-        .bind(body.qualityPercent, body.qualityLevel ?? null, body.quantityTarget ?? null,
-          body.quantityActual ?? null, body.quantityPercent ?? null, body.quantityLevel ?? null, now, id).run()
+        .bind(qPct, qLevel, Number(body.quantityTarget || 0),
+          Number(body.quantityActual || 0), Number(body.quantityPercent || 0), body.quantityLevel ?? null, now, id).run()
     } else {
       await d1.prepare(`INSERT INTO "AchievementScore" (id,reportId,qualityPercent,qualityLevel,quantityTarget,quantityActual,quantityPercent,quantityLevel,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?)`)
-        .bind(newId(), id, body.qualityPercent || 0, body.qualityLevel ?? null,
-          body.quantityTarget ?? null, body.quantityActual ?? null,
-          body.quantityPercent ?? null, body.quantityLevel ?? null, now, now).run()
+        .bind(newId(), id, qPct, qLevel,
+          Number(body.quantityTarget || 0), Number(body.quantityActual || 0),
+          Number(body.quantityPercent || 0), body.quantityLevel ?? null, now, now).run()
     }
   }
 
-  // Upsert Report Summary
-  if (body.strengths !== undefined || body.improvements !== undefined) {
+  // 7. Upsert Report Summary
+  const hasSummaryData = body.strengths !== undefined || body.improvements !== undefined || body.suggestions !== undefined
+  if (hasSummaryData) {
     const existing = await d1.prepare(`SELECT id FROM "ReportSummary" WHERE reportId=?`).bind(id).first()
     if (existing) {
       await d1.prepare(`UPDATE "ReportSummary" SET strengths=?,improvements=?,suggestions=?,updatedAt=? WHERE reportId=?`)
@@ -253,7 +281,7 @@ export async function updateReport(id: string, body: any) {
     }
   }
 
-  // Upsert Signatories
+  // 8. Upsert Signatories
   if (body.signatories) {
     for (const role of ['REPORTER', 'PLAN_HEAD', 'PRINCIPAL']) {
       const sig = body.signatories[role]
@@ -266,6 +294,26 @@ export async function updateReport(id: string, body: any) {
         await d1.prepare(`INSERT INTO "Signatory" (id,reportId,role,name,position,academicStanding,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?)`)
           .bind(newId(), id, role, sig.name, sig.position ?? null, sig.academicStanding ?? null, now, now).run()
       }
+    }
+  }
+
+  // 9. Activity Photos (Image URLs)
+  if (body.activityPhotos) {
+    await d1.prepare(`DELETE FROM "ActivityPhoto" WHERE reportId=?`).bind(id).run()
+    let order = 0
+    for (const photo of body.activityPhotos || []) {
+      if (!photo.url?.trim()) continue
+      await d1.prepare(`INSERT INTO "ActivityPhoto" (id,reportId,url,caption,"order",includeInReport,layout,createdAt) VALUES (?,?,?,?,?,?,?,?)`)
+        .bind(newId(), id, photo.url.trim(), photo.caption || '', order++, photo.includeInReport !== false ? 1 : 0, photo.layout || 'TWO_PER_PAGE', now).run()
+    }
+  }
+
+  // 10. Evidence Documents
+  if (body.evidenceDocs) {
+    await d1.prepare(`DELETE FROM "EvidenceDocument" WHERE reportId=?`).bind(id).run()
+    for (const [docType, hasDoc] of Object.entries(body.evidenceDocs)) {
+      await d1.prepare(`INSERT INTO "EvidenceDocument" (id,reportId,docType,hasDoc,createdAt,updatedAt) VALUES (?,?,?,?,?,?)`)
+        .bind(newId(), id, docType, hasDoc ? 1 : 0, now, now).run()
     }
   }
 
