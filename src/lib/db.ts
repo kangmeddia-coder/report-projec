@@ -13,6 +13,14 @@ export function getD1() {
   }
 }
 
+// ─── BigInt & Object Sanitizer Helper for Next.js SSR ────────────────────────
+export function cleanObj(obj: any): any {
+  if (obj === null || obj === undefined) return null
+  return JSON.parse(
+    JSON.stringify(obj, (_, value) => (typeof value === 'bigint' ? Number(value) : value))
+  )
+}
+
 // ─── Safe Query Execution Helper ───────────────────────────────────────────────
 async function safeQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   try {
@@ -47,26 +55,27 @@ export async function getReports(userId: string, role: string) {
     ORDER BY r.updatedAt DESC
   `
   const result = await safeQuery(() => d1.prepare(sql).bind(...(isTeacher ? [userId] : [])).all(), { results: [] })
-  return (result?.results || []).map((r: any) => ({
+  const mapped = (result?.results || []).map((r: any) => ({
     id: r.id,
     title: r.title,
     activityName: r.activityName,
     fiscalYear: r.fiscalYear,
     workGroup: r.workGroup,
     status: r.status,
-    completeness: r.completeness || 0,
+    completeness: Number(r.completeness || 0),
     authorId: r.authorId,
     schoolId: r.schoolId,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
     author: { name: r.authorName },
     budget: r.budgetApproved != null ? {
-      approved: r.budgetApproved,
-      used: r.budgetUsed,
-      remaining: r.budgetRemaining,
+      approved: Number(r.budgetApproved || 0),
+      used: Number(r.budgetUsed || 0),
+      remaining: Number(r.budgetRemaining || 0),
       budgetType: r.budgetType,
     } : null,
   }))
+  return cleanObj(mapped)
 }
 
 export async function getReportById(id: string) {
@@ -118,7 +127,7 @@ export async function getReportById(id: string) {
     surveyWithAnswers = { ...satisfactionSurvey, answers: answers?.results || [] }
   }
 
-  return {
+  const resultObj = {
     ...report,
     author: { name: (report as any).authorName, email: (report as any).authorEmail },
     school: report ? {
@@ -143,6 +152,8 @@ export async function getReportById(id: string) {
     signatories: signatories?.results || [],
     comments: comments?.results || [],
   }
+
+  return cleanObj(resultObj)
 }
 
 export async function createReport(data: any) {
@@ -159,7 +170,7 @@ export async function createReport(data: any) {
     data.status || 'IN_PROGRESS', data.completeness || 0,
     data.authorId, data.schoolId || null, now, now, now).run()
 
-  return { id, ...data, createdAt: now, updatedAt: now }
+  return cleanObj({ id, ...data, createdAt: now, updatedAt: now })
 }
 
 export async function updateReport(id: string, body: any) {
@@ -348,7 +359,7 @@ export async function updateReport(id: string, body: any) {
     }, null)
   }
 
-  return { id, ...body, updatedAt: now }
+  return cleanObj({ id, ...body, updatedAt: now })
 }
 
 export async function deleteReport(id: string) {
@@ -369,13 +380,14 @@ export async function updateReportStatus(id: string, status: string, comment?: s
       .bind(newId(), id, comment, authorId, now).run(), null)
   }
 
-  return { id, status, updatedAt: now }
+  return cleanObj({ id, status, updatedAt: now })
 }
 
 export async function getSchool(schoolId: string) {
   const d1 = getD1()
   if (!d1) return null
-  return await safeQuery(() => d1.prepare(`SELECT * FROM "School" WHERE id=?`).bind(schoolId).first(), null)
+  const school = await safeQuery(() => d1.prepare(`SELECT * FROM "School" WHERE id=?`).bind(schoolId).first(), null)
+  return cleanObj(school)
 }
 
 export async function updateSchool(schoolId: string, data: any) {
@@ -392,5 +404,5 @@ export async function updateSchool(schoolId: string, data: any) {
     data.principalName ?? null, data.planHeadName ?? null,
     now, schoolId
   ).run(), null)
-  return { id: schoolId, ...data, updatedAt: now }
+  return cleanObj({ id: schoolId, ...data, updatedAt: now })
 }

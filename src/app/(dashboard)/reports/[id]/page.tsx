@@ -1,5 +1,5 @@
 import { auth } from '@/lib/auth'
-import { getReportById } from '@/lib/db'
+import { getReportById, cleanObj } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import EditReportClient from '@/components/report/EditReportClient'
@@ -29,7 +29,8 @@ export default async function EditReportPage({ params }: PageProps) {
       )
     }
 
-    return <EditReportClient report={JSON.parse(JSON.stringify(report))} />
+    const cleanData = cleanObj(report)
+    return <EditReportClient report={cleanData} />
   } catch (err: any) {
     return (
       <div className="p-12 text-center max-w-xl mx-auto my-16 bg-white rounded-2xl border border-red-200 shadow-lg">
